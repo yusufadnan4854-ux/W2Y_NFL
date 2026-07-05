@@ -61,7 +61,6 @@ def hex_to_ass_color(hex_str, opacity_float=1.0):
 
 def get_audio_duration(audio_path):
     try:
-        # Absoute file path in parameter prevents error correctly seamlessly tracking timeline durations explicitly correctly. 
         result = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", os.path.abspath(audio_path)], capture_output=True, text=True, check=True)
         return float(result.stdout.strip())
     except: return 0.0
@@ -148,7 +147,7 @@ def render_zoom_segment_by_ffmpeg(clip_index, segment_duration, input_img_path, 
     ]
     
     subprocess.run(cmd_arguments, check=True)
-    return output_segment_path  # Returning the full absolute path so Concat doesn't lose items randomly! 
+    return output_segment_path  # Absolute path returned safely
 
 def get_sentence_timestamps(srt_path):
     if not os.path.exists(srt_path): return []
@@ -179,7 +178,7 @@ def safe_upload_to_youtube(video_full_path, thumb_full_path, title, video_descri
     completed_exec = target_job.execute()
     newly_deployed_id = completed_exec.get('id')
     
-    print(f"Mission uploaded officially validly onto network stream correctly generating: ID: {newly_deployed_id}")
+    print(f"Mission uploaded successfully! ID: {newly_deployed_id}")
 
     if os.path.exists(thumb_full_path):
         google_cloud_instance.thumbnails().set(videoId=newly_deployed_id, media_body=MediaFileUpload(thumb_full_path)).execute()
@@ -207,7 +206,7 @@ def process_primary_automation_loop():
                 collected_feeds.append(p_obj)
         except: pass
 
-    # পুরানো টাইমে শর্ট 
+    # ক্রনোলজিক্যাল সর্টিং
     collected_feeds.sort(key=lambda sxy: getattr(sxy, 'published_parsed', None) or getattr(sxy, 'updated_parsed', None) or (0,), reverse=False)
 
     filter_excluded_title = [xtr.strip().lower() for xtr in user_settings["exclude_title_keywords"].split(",") if xtr.strip()]
@@ -220,6 +219,7 @@ def process_primary_automation_loop():
         if a_link in done_records: 
             continue
             
+        # k / kw এররটি ডাইরেক্ট পরিষ্কার ভেরিয়েবল নামে সলভ করা হলো:
         skip_article = False
         if filter_excluded_title:
             for spam_word in filter_excluded_title:
@@ -240,10 +240,10 @@ def process_primary_automation_loop():
         final_action_items.append(fitem)
 
     if not final_action_items: 
-        print("Completed database scraping securely finding identical configurations without required boundaries correctly terminating instance sequence gracefully without running expensive algorithms! Wait schedule triggered!")
+        print("Completed database scraping securely. Scheduled task waiting.")
         return
 
-    # === Directory Constants explicitly maintained absolute tracking paths safe perfectly without breaks === 
+    # === Directory Constants absolute safe paths === 
     wkspace = os.path.abspath(os.path.join(os.getcwd(), 'workspace'))
     target_imgdir = os.path.join(wkspace, 'images')
     targ_pcdir = os.path.join(wkspace, 'processed_frames')
@@ -286,10 +286,8 @@ def process_primary_automation_loop():
             calc_tlength = get_audio_duration(path_mp3)
             pics_limit_range = 30 if calc_tlength > 240.0 else 18
 
-            # সাবজেক্ট সিলেকশন 
             first_subject_arrays = re.findall(r'\b[A-Z][a-z]{3,}\b', text_chunk_collected)
             active_smart_lookup_word = f"{first_subject_arrays[0]} {first_subject_arrays[1]}" if len(first_subject_arrays) >= 2 else "Sports match highlights action field"
-            
             raw_unlinked_pic_pointers = scrape_real_images_from_search(active_smart_lookup_word, max_results=pics_limit_range)
 
             succesfully_got_downloads = 0
@@ -304,87 +302,94 @@ def process_primary_automation_loop():
 
             dflocst = sorted([pzbv for pzbv in os.listdir(target_imgdir) if pzbv.endswith(('.jpg','.jpeg','.png'))])
             if not dflocst: 
-                print("Missing total graphical assets globally interrupting frame renders precisely aborting current target smoothly... "); continue
+                print("Missing total graphical assets globally. Skipping current target... "); continue
 
-            print("Constructing display layout aspects mapping accurately handling dimensions over 16:9 1080p full configurations directly over Python Pil filters efficiently natively protecting CPUs...")
-            
-            tmbnpath = os.path.join(wkspace, "thumbnail.jpg")
-            process_dynamic_thumbnail(target_imgdir, tmbnpath)
+            print("Constructing display layout aspects mapping accurately handling dimensions over 16:9 1080p full configurations...")
+            process_dynamic_thumbnail(target_imgdir, os.path.join(wkspace, "thumbnail.jpg"))
 
-            for pcbdrcntnctrxvzsfvsf_p_file in dflocst:
+            for p_file in dflocst:
                 try:
-                    with Image.open(os.path.join(target_imgdir, pcbdrcntnctrxvzsfvsf_p_file)) as obimgstrm:
-                        converted_rgbz = obimgstrm.convert('RGB')
-                        bxvwsdf, bhzyhdcvf = converted_rgbz.size
+                    with Image.open(os.path.join(target_imgdir, p_file)) as obimgstrm:
+                        base_rgb_convert = obimgstrm.convert('RGB')
+                        im_w, im_h = base_rgb_convert.size
                         
-                        if bxvwsdf / bhzyhdcvf < 1.7:
-                            bgstck = converted_rgbz.resize((1920,1080)).filter(ImageFilter.GaussianBlur(15))
-                            scalewdt = int(1080 * (bxvwsdf/bhzyhdcvf))
-                            mainfghr = converted_rgbz.resize((scalewdt, 1080))
-                            bgstck.paste(mainfghr, ((1920 - scalewdt)//2, 0))
-                            savablez = bgstck
-                        else: safxszszczsfczvbcfgbszfscxfvxbzcxvsbvxzbvzfbdfczxbxbcfvbvddc = converted_rgbz.resize((1920, 1080))
-                        
-                        savablez.save(os.path.join(targ_pcdir, f"pf_{pcbdrcntnctrxvzsfvsf_p_file}"), quality=85)
+                        if (im_w / im_h) < 1.7:
+                            blurred_bg = base_rgb_convert.resize((1920, 1080)).filter(ImageFilter.GaussianBlur(15))
+                            new_fit_width = int(1080 * (im_w / im_h))
+                            sharp_fg = base_rgb_convert.resize((new_fit_width, 1080))
+                            blurred_bg.paste(sharp_fg, ((1920 - new_fit_width) // 2, 0))
+                            final_output_layer = blurred_bg
+                        else: 
+                            final_output_layer = base_rgb_convert.resize((1920, 1080))
+                            
+                        final_output_layer.save(os.path.join(targ_pcdir, f"pf_{p_file}"), quality=85)
                 except: pass
 
-            plfdfnsz_listrsccbcbbdcczvfvxbxsfcfgxsx=sorted([fzdbvzfxbvcbs for fzdbvzfxbvcbs in os.listdir(targ_pcdir) if fzdbvzfxbvcbs.endswith('.jpg') or fzdbvzfxbvcbs.endswith('.jpeg') or fzdbvzfxbvcbs.endswith('.png')])
-            if not plfdfnsz_listrsccbcbbdcczvfvxbxsfcfgxsx: continue
+            pil_rendered_list = sorted(os.listdir(targ_pcdir))
+            if not pil_rendered_list: continue
 
-            c_clcksbsbxvvdddvssdzvdcfxvbdd = get_sentence_timestamps(path_srt)
-            lenpfflsxcxxdczzzszcxs=len(plfdfnsz_listrsccbcbbdcczvfvxbxsfcfgxsx)
+            sentence_timers = get_sentence_timestamps(path_srt)
+            pil_frames_len = len(pil_rendered_list)
             
-            if not c_clcksbsbxvvdddvssdzvdcfxvbdd: 
-                c_clcksbsbxvvdddvssdzvdcfxvbdd = [ubvcxxdzcdfcbzffszvzsfddccvf* (calc_tlength / lenpfflsxcxxdczzzszcxs) for ubvcxxdzcdfcbzffszvzsfddccvf in range(lenpfflsxcxxdczzzszcxs)]
-            elif c_clcksbsbxvvdddvssdzvdcfxvbdd[0] > 0.1: c_clcksbsbxvvdddvssdzvdcfxvbdd.insert(0,0.0)
-            else: c_clcksbsbxvvdddvssdzvdcfxvbdd[0] = 0.0
-            c_clcksbsbxvvdddvssdzvdcfxvbdd.append(calc_tlength)
+            if not sentence_timers: 
+                sentence_timers = [u_item * (calc_tlength / pil_frames_len) for u_item in range(pil_frames_len)]
+            elif sentence_timers[0] > 0.1: 
+                sentence_timers.insert(0, 0.0)
+            else: 
+                sentence_timers[0] = 0.0
+            sentence_timers.append(calc_tlength)
+            total_n_segments = len(sentence_timers) - 1
 
-            fastfmsbsbsfvxcxzfxcvdvx= []
-            ttlsenxdcxbdzs=len(c_clcksbsbxvvdddvssdzvdcfxvbdd) - 1
+            lines_for_slider_doc = []
+            
+            # থ্রেড এক্সিকিউশন ও হার্ডওয়্যার অপ্টিমাইজড জেনারেটর (No 24hrs timeouts)
+            print(f"Assigning Fast Direct Encoding Native Modules building completely cleanly perfectly over core engines logically...")
 
-            # থ্রেড এক্সিকিউশন ও হার্ডওয়্যার অপ্টিমাইজড জেনারেটর (No 24hrs timeouts natively deployed logic accurately ensuring bounds constraints matching loops explicitly...)
-            print(f"Assigning Fast Direct Encoding Native Modules building completely cleanly perfectly bypassing missing index errors preventing delays properly exclusively over core engines logically...")
-
-            with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as fastr_hdtxcxsddsfffzczcxffsvvsxfsfszvzfzbbsvc:
-                sdbfdzbczzbcxdsxdzxzbscfbsbcbdxzxv=[]
-                for idxbszfzbbbcxbbfbzsvzfzscddszfdsvvcbbcgbxsvcdxzsfcvdxzfcssxxbcffdczdbscbsxsfszvdddzxfbbxvzcbdzvscxxzczffzvbzxbvzxfdbvbscxfcxzczsvscvvvxczsdcbcxfcdzfzfbcczxbvcbfxfv in range(ttlsenxdcxbdzs):
-                    clkgpzcfzxbcbzbcssbvzfcdsbvxscdxzcffdffcdsfzz=c_clcksbsbxvvdddvssdzvdcfxvbdd[idxbszfzbbbcxbbfbzsvzfzscddszfdsvvcbbcgbxsvcdxzsfcvdxzfcssxxbcffdczdbscbsxsfszvdddzxfbbxvzcbdzvscxxzczffzvbzxbvzxfdbvbscxfcxzczsvscvvvxczsdcbcxfcdzfzfbcczxbvcbfxfv+1]-c_clcksbsbxvvdddvssdzvdcfxvbdd[idxbszfzbbbcxbbfbzsvzfzscddszfdsvvcbbcgbxsvcdxzsfcvdxzfcssxxbcffdczdbscbsxsfszvdddzxfbbxvzcbdzvscxxzczffzvbzxbvzxfdbvbscxfcxzczsvscvvvxczsdcbcxfcdzfzfbcczxbvcbfxfv]
-                    pcxfbzxcvcxbcdscfxxcdzdsszfzxbdzsxvfszd=os.path.abspath(os.path.join(targ_pcdir, plfdfnsz_listrsccbcbbdcczvfvxbxsfcfgxsx[idxbszfzbbbcxbbfbzsvzfzscddszfdsvvcbbcgbxsvcdxzsfcvdxzfcssxxbcffdczdbscbsxsfszvdddzxfbbxvzcbdzvscxxzczffzvbzxbvzxfdbvbscxfcxzczsvscvvvxczsdcbcxfcdzfzfbcczxbvcbfxfv % len(plfdfnsz_listrsccbcbbdcczvfvxbxsfcfgxsx)]))
-                    sgbxdvxzcxsbfcxbsfzvcvdssvxczbcsdbvcfffzbzvxcvxfcfcv=os.path.abspath(os.path.join(targ_vfrmdir, f"segcxvsxbvzvfvfbbbccsczxbxffzfvdczxfcdxdzfdfxvfxxcbvvsfxzbsvcbscxxzxzbzxvvvxdbsscdvfddvfbfvdscbzscvxxsdczvdccszxd_{idxbszfzbbbcxbbfbzsvzfzscddszfdsvvcbbcgbxsvcdxzsfcvdxzfcssxxbcffdczdbscbsxsfszvdddzxfbbxvzcbdzvscxxzczffzvbzxbvzxfdbvbscxfcxzczsvscvvvxczsdcbcxfcdzfzfbcczxbvcbfxfv:04d}.mp4"))
-                    sdbfdzbczzbcxdsxdzxzbscfbsbcbdxzxv.append(fastr_hdtxcxsddsfffzczcxffsvvsxfsfszvzfzbbsvc.submit(render_zoom_segment_by_ffmpeg, idxbszfzbbbcxbbfbzsvzfzscddszfdsvvcbbcgbxsvcdxzsfcvdxzfcssxxbcffdczdbscbsxsfszvdddzxfbbxvzcbdzvscxxzczffzvbzxbvzxfdbvbscxfcxzczsvscvvvxczsdcbcxfcdzfzfbcczxbvcbfxfv, clkgpzcfzxbcbzbcssbvzfcdsbvxscdxzcffdffcdsfzz, pcxfbzxcvcxbcdscfxxcdzdsszfzxbdzsxvfszd, sgbxdvxzcxsbfcxbsfzvcvdssvxczbcsdbvcfffzbzvxcvxfcfcv))
+            with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as thex:
+                rendered_segment_tasks = []
+                for sg_ix in range(total_n_segments):
+                    s_gap = sentence_timers[sg_ix+1] - sentence_timers[sg_ix]
+                    img_f = os.path.join(targ_pcdir, pil_rendered_list[sg_ix % len(pil_rendered_list)])
+                    output_v_frag = os.path.join(targ_vfrmdir, f"segcxvsxbvzvfvfbbbccsczxbxffzfvdczxfcdxdzfdfxvfxxcbvvsfxzbsvcbscxxzxzbzxvvvxdbsscdvfddvfbfvdscbzscvxxsdczvdccszxd_{sg_ix:04d}.mp4")
+                    rendered_segment_tasks.append(thex.submit(render_zoom_segment_by_ffmpeg, sg_ix, s_gap, img_f, output_v_frag))
                     
-                for tfbczzzcxvszvdfvbcdbbbfzsxdbdbcfxvzvffxxsdvcxdcbcxzsdvsccfssxxszdssxbvbvdzsbcbzbvdsszcbzdbcdxsxvbdsfvdszdvvsvfsdbvx in sdbfdzbczzbcxdsxdzxzbscfbsbcbdxzxv: fastfmsbsbsfvxcxzfxcvdvx.append(f"file '{tfbczzzcxvszvdfvbcdbbbfzsxdbdbcfxvzvffxxsdvcxdcbcxzsdvsccfssxxszdssxbvbvdzsbcbzbvdsszcbzdbcdxsxvbdsfvdszdvvsvfsdbvx.result()}'")
+                for task_obj in rendered_segment_tasks: 
+                    # স্লাইডার ফাইলে অ্যাবসলিউট পাথ দিয়ে দেওয়া হলো 
+                    lines_for_slider_doc.append(f"file '{os.path.abspath(task_obj.result()).replace('\\', '/')}'")
 
-            pcdfxzczsxxfsfsfsffsszbccbcccdvfcccfsfvzzxdxxbvffsbcfbzscbzsfzxcccbcbssfvfsdzxxzsffbcfsddbcxbxxbfdcvzfzbczxvfdcxbfdzfbxzdvf=os.path.join(wkspace, "temp_slider.txt")
-            with open(pcdfxzczsxxfsfsfsffsszbccbcccdvfcccfsfvzzxdxxbvffsbcfbzscbzsfzxcccbcbssfvfsdzxxzsffbcfsddbcxbxxbfdcvzfzbczxvfdcxbfdzfbxzdvf, "w", encoding="utf-8") as cwrtsszxvzxffdbbzscvcbfsbvdcvfbcdzcbxbbscccdcxbsvfzcdddzcvszcbzcdxzxczvdcsxdsszbxfzvfcsdzxdsdsbvfbxfxsbsdxsvcvscdzcfcxgbfxfxzxxxdvxdfddxxbfszxbcxcbxvcxgfbzdxfbcxdbdxdzdzzsvcdbxszfvbdvxxfzfsgcxzfcssfzdgxvv: cwrtsszxvzxffdbbzscvcbfsbvdcvfbcdzcbxbbscccdcxbsvfzcdddzcvszcbzcdxzxczvdcsxdsszbxfzvfcsdzxdsdsbvfbxfxsbsdxsvcvscdzcfcxgbfxfxzxxxdvxdfddxxbfszxbcxcbxvcxgfbzdxfbcxdbdxdzdzzsvcdbxszfvbdvxxfzfsgcxzfcssfzdgxvv.write("\n".join(fastfmsbsbsfvxcxzfxcvdvx))
-
-            print("Mixing layers completely perfectly safe bypassing block issues dynamically integrating timeline rules internally logically globally generating...")
-            rtpzdxzcxcszbzcxxcsxsdfxssbsbcxzxzvcfsfdcsxcscfzbzsfdzczsvfvcccvvxxscbcvddfvdfsbvfvbzfccdfvxbdzczxbdf=os.path.join(wkspace, "temp_output.mp4")
-            rzxdbsdvczfcxsxvdzbxzxdfbvvdcfffvdxfbzxzbdvfvxcfsfcbccxsxdcxzfczbbvxzbfcfzfcxzcdxfsvsbsbvffdbdxbxbxzfssdzcdvdczddzxvbvbxf=os.path.join(wkspace, "output_video.mp4")
-
-            # MAIN CONCAT EXPLICIT COMMAND PATH DIRECT REPEATS ALLOWED AVOIDING BANNED FILE FORMAT MUX PROCESSORS 
-            subprocess.run(["ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error", "-safe", "0", "-f", "concat", "-i", pcdfxzczsxxfsfsfsffsszbccbcccdvfcccfsfvzzxdxxbvffsbcfbzscbzsfzxcccbcbssfvfsdzxxzsffbcfsddbcxbxxbfdcvzfzbczxvfdcxbfdzfbxzdvf, "-i", os.path.abspath(path_mp3), "-c:v", "copy", "-c:a", "copy", "-shortest", rtpzdxzcxcszbzcxxcsxsdfxssbsbcxzxzvcfsfdcsxcscfzbzsfdzczsvfvcccvvxxscbcvddfvdfsbvfvbzfccdfvxbdzczxbdf], check=True)
-
-            xsczczcsdzvcbfzxbbcczb=hex_to_ass_color(user_settings["font_color"], 1.0)
-            zsfdcvdfzszvbvfzczffzsdzbzsxxsvssbdzdvzcvxbz=hex_to_ass_color(user_settings["bg_color"], user_settings.get("bg_opacity", 0.5))
-            fxdcssfsgsvzbdfsdxfzvbvxbdsvxxvzdszzcsbfd=f"FontName=Arial,FontSize={user_settings['font_size']},PrimaryColour={xsczczcsdzvcbfzxbbcczb},BackColour={zsfdcvdfzszvbvfzczffzsdzbzsxxsvssbdzdvzcvxbz},BorderStyle={user_settings['border_style']},Outline=2,Shadow=1,Alignment=2,MarginV={user_settings['margin_v']}"
+            tmpsldr_txt_path = os.path.join(wkspace, "temp_slider.txt")
+            with open(tmpsldr_txt_path, "w", encoding="utf-8") as fw12z: fw12z.write("\n".join(lines_for_slider_doc))
             
-            # SUBTITLES OVERLAY BURNING LOCALLY ON SAFEPATH WORKSPACE EXPLICIT OVER ABSOLUTES:
-            fvsdfsfdczzxffvxdgfsbsvxcdcfcdzfsxzszfcbdfffbsdsfvzczxzdxszcdcxcccbdssxcfbzsdbbbdcccbcdbdzfvvbbxbbbfcsfgxdvcfbzzfbxf=os.path.abspath(path_srt)
-            # Ensuring SRT path inside Linux paths doesn't trigger path exceptions escaping syntax locally via FFmpeg explicitly mapping quotes exactly correct accurately preventing absolute routing issues
-            tclmstrsvzzcfscsddcxfvzfffbcbddvfxfsvszsfzxzbsszxsvxbcbxzcbsbzsdxdcbdvsbccfxdsxvzczvsfbfcdcbzzsbvzccxdcfxvfcvdzdzxdscxcfvcsfgdzxzsczbxxvbxzvfffxd=f"subtitles={fvsdfsfdczzxffvxdgfsbsvxcdcfcdzfsxzszfcbdfffbsdsfvzczxzdxszcdcxcccbdssxcfbzsdbbbdcccbcdbdzfvvbbxbbbfcsfgxdvcfbzzfbxf}:force_style='{fxdcssfsgsvzbdfsdxfzvbvxbdsvxxvzdszzcsbfd}'"
-            # Linux path syntax normalization hack
-            tclmstrsvzzcfscsddcxfvzfffbcbddvfxfsvszsfzxzbsszxsvxbcbxzcbsbzsdxdcbdvsbccfxdsxvzczvsfbfcdcbzzsbvzccxdcfxvfcvdzdzxdscxcfvcsfgdzxzsczbxxvbxzvfffxd = tclmstrsvzzcfscsddcxfvzfffbcbddvfxfsvszsfzxzbsszxsvxbcbxzcbsbzsdxdcbdvsbccfxdsxvzczvsfbfcdcbzzsbvzccxdcfxvfcvdzdzxdscxcfvcsfgdzxzsczbxxvbxzvfffxd.replace("\\", "/")
+            raw_tmp_output = os.path.join(wkspace, "temp_output.mp4")
+            fully_finalized_output = os.path.join(wkspace, "output_video.mp4")
+            
+            print("Mixing layers completely perfectly safe bypassing block issues dynamically integrating timeline... [Fast Muxing]")
+            subprocess.run(["ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error", "-safe", "0", "-f", "concat", "-i", os.path.abspath(tmpsldr_txt_path).replace("\\", "/"), "-i", os.path.abspath(path_mp3).replace("\\", "/"), "-c:v", "copy", "-c:a", "copy", "-shortest", os.path.abspath(raw_tmp_output).replace("\\", "/")], check=True)
 
-            subprocess.run(["ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error", "-i", rtpzdxzcxcszbzcxxcsxsdfxssbsbcxzxzvcfsfdcsxcscfzbzsfdzczsvfvcccvvxxscbcvddfvdfsbvfvbzfccdfvxbdzczxbdf", "-vf", tclmstrsvzzcfscsddcxfvzfffbcbddvfxfsvszsfzxzbsszxsvxbcbxzcbsbzsdxdcbdvsbccfxdsxvzczvsfbfcdcbzzsbvzccxdcfxvfcvdzdzxdscxcfvcsfgdzxzsczbxxvbxzvfffxd, "-c:v", "libx264", "-crf", "18", "-preset", "ultrafast", "-c:a", "copy", rzxdbsdvczfcxsxvdzbxzxdfbvvdcfffvdxfbzxzbdvfvxcfsfcbccxsxdcxzfczbbvxzbfcfzfcxzcdxfsvsbsbvffdbdxbxbxzfssdzcdvdczddzxvbvbxf], check=True)
+            clx_pri = hex_to_ass_color(user_settings["font_color"], 1.0)
+            clx_bkg = hex_to_ass_color(user_settings["bg_color"], user_settings.get("bg_opacity", 0.5))
+            stylstr_for_subs = f"FontName=Arial,FontSize={user_settings['font_size']},PrimaryColour={clx_pri},BackColour={clx_bkg},BorderStyle={user_settings['border_style']},Outline=2,Shadow=1,Alignment=2,MarginV={user_settings['margin_v']}"
+
+            # FIXED THE LINUX SUBTITLE PATH BUG BY ESCAPING PROPERLY AND CONVERTING TO ABSOLUTE FORWARD SLASHES
+            absolute_srt_path = os.path.abspath(path_srt).replace("\\", "/")
+            tclmstr_subtitles_filter = f"subtitles='{absolute_srt_path}':force_style='{stylstr_for_subs}'"
+
+            # FFmpeg Command Array is safely updated now (No SyntaxErrors or line breaks!)
+            subs_cmd = [
+                "ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error", 
+                "-i", os.path.abspath(raw_tmp_output).replace("\\", "/"), 
+                "-vf", tclmstr_subtitles_filter, 
+                "-c:v", "libx264", "-crf", "18", "-preset", "ultrafast", 
+                "-c:a", "copy", os.path.abspath(fully_finalized_output).replace("\\", "/")
+            ]
+            subprocess.run(subs_cmd, check=True)
             
-            safe_upload_to_youtube(rzxdbsdvczfcxsxvdzbxzxdfbvvdcfffvdxfbzxzbdvfvxcfsfcbccxsxdcxzfczbbvxzbfcfzfcxzcdxfsvsbsbvffdbdxbxbxzfssdzcdvdczddzxvbvbxf, os.path.join(wkspace, "thumbnail.jpg"), vid_ttl, f"Latest detailed reports streaming safely natively mapping rules smoothly verified correctly efficiently generated natively tracking logs perfectly without lag: {vid_ttl}")
+            safe_upload_to_youtube(fully_finalized_output, os.path.join(wkspace, "thumbnail.jpg"), vid_ttl, f"Complete Highlights Recap: {vid_ttl}\nGenerated automatically via AI Cloud System.")
             
-            with open("processed_urls.txt", "a", encoding="utf-8") as szfvbsdxbzc: szfvbsdxbzc.write(lns+"\n")
+            with open("processed_urls.txt", "a", encoding="utf-8") as fwx_docv: fwx_docv.write(lns+"\n")
             print("================ 🎯 Entire operation pipeline handled seamlessly efficiently generating complete outcomes directly efficiently 💯 ================\n")
 
-        except Exception as xzfscbxsbzvbdcbdvsbzdsxbbfvfssdbcvzdvfczbcbgfff: traceback.print_exc()
+        except Exception as errp: traceback.print_exc()
 
 if __name__ == "__main__":
     process_primary_automation_loop()
