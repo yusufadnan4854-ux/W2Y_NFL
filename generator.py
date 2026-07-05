@@ -16,26 +16,23 @@ import feedparser
 import edge_tts
 
 try:
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
     DDG_SDK_AVAILABLE = True
 except ImportError:
-    DDG_SDK_AVAILABLE = False
+    try:
+        from duckduckgo_search import DDGS
+        DDG_SDK_AVAILABLE = True
+    except ImportError:
+        DDG_SDK_AVAILABLE = False
 
-try:
-    from moviepy import ImageClip
-    MOVIEPY_V2 = True
-except ImportError:
-    from moviepy.editor import ImageClip
-    MOVIEPY_V2 = False
-
-# ১০০% শুধুমাত্র NBA Basketball / NBA Match Action ফটো ব্যাকআপ লিডারবোর্ড 
+# ১০০% এক্সক্লুসিভ NBA Basketball Match visual photos
 GENERIC_BASKETBALL_FALLBACKS = [
-    "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1920&q=80", # NBA Hoop Action
-    "https://images.unsplash.com/photo-1519766304817-4f37bda74a27?w=1920&q=80", # NBA Court Match
-    "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=1920&q=80", # Stadium Court Match
-    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1920&q=80", # Basketball Match Play
-    "https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=1920&q=80", # Slam dunk match
-    "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=1920&q=80"  # Basketball court action
+    "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1920&q=80", 
+    "https://images.unsplash.com/photo-1519766304817-4f37bda74a27?w=1920&q=80", 
+    "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=1920&q=80", 
+    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1920&q=80", 
+    "https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=1920&q=80", 
+    "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=1920&q=80"  
 ]
 
 async def generate_voice_and_subtitles(text, voice, audio_path, srt_path):
@@ -67,21 +64,15 @@ def scrape_article(url):
     return "\n\n".join(cleaned_paragraphs)
 
 def extract_hyper_relevant_keyword(title, body_text):
-    """
-    খেলোয়াড়ের নাম থাকলে সেই খেলোয়াড় অনুযায়ী ছবি খুঁজবে। 
-    নাম না থাকলে শুধু ১০০% NBA Basketball ফিল্টার থেকে ইমেজ বের করবে (অন্য খেলা থেকে কখনই না)।
-    """
     words = re.findall(r'\b[A-Z][a-z]{3,}\b', body_text) 
     stop_words = {'That', 'This', 'There', 'With', 'From', 'Have', 'Your', 'Which', 'Will', 
                   'About', 'Like', 'Just', 'When', 'What', 'Know', 'Feel', 'They', 'Team', 'Game', 'News', 'Full', 'Belief', 'Bold', 'League', 'Summer', 'Report', 'First'}
     filtered = [w for w in words if w not in stop_words]
     
     if len(filtered) >= 2:
-        # খেলোয়াড়ের অরিজিনাল ফ্রিকোয়েন্সি নাম এক্সট্র্যাকশন
         unique_nouns = list(dict.fromkeys(filtered))[:2]
         query = f"{' '.join(unique_nouns)} NBA basketball match action"
     else:
-        # নামের তথ্য না থাকলে শিরোনামের মূল টার্মস + Strict NBA Match Action Keywords!
         clean_words = [cw for cw in re.sub(r'[^a-zA-Z0-9\s]', '', title).split() if cw.lower() not in stop_words]
         main_terms = " ".join(clean_words[:2]) if clean_words else "NBA match"
         query = f"{main_terms} NBA basketball action match photo"
@@ -244,11 +235,16 @@ def safe_upload_to_youtube(video_full_path, thumb_full_path, title, video_descri
     )
     google_cloud_instance = build("youtube", "v3", credentials=authorized_keys)
 
-    pack = {
+    # ইউটিলিটি ভেরিয়েবল ম্যাপিং সংশোধন (Fixes NameError: body)
+    body = {
         'snippet': {'title': title[:98], 'description': video_description, 'categoryId': '17'}, 
         'status': {'privacyStatus': 'public', 'selfDeclaredMadeForKids': False}
     }
-    target_job = google_cloud_instance.videos().insert(part="snippet,status", body=body, media_body=MediaFileUpload(video_full_path, resumable=True, mimetype="video/mp4"))
+    target_job = google_cloud_instance.videos().insert(
+        part="snippet,status", 
+        body=body, 
+        media_body=MediaFileUpload(video_full_path, resumable=True, mimetype="video/mp4")
+    )
     completed_exec = target_job.execute()
     newly_deployed_id = completed_exec.get('id')
     
@@ -313,8 +309,7 @@ def process_primary_automation_loop():
         print("Completed database scraping securely. Scheduled task waiting.")
         return
 
-    # 📌 ২৪ ঘন্টার ফিল্টার পূরণকারী সম্পূর্ণ সকল নিউজের জন্য ব্যাক-টু-ব্যাক ভিডিও বানাতে সব ফিল্ড অ্যাক্টিভ থাকবে 
-    print(f"📊 Valid Target Found: Processing {len(final_action_items)} new articles from last 24h feed database...")
+    print(f"📊 Processing {len(final_action_items)} new targets based on feed preferences...")
 
     wkspace = os.path.abspath(os.path.join(os.getcwd(), 'workspace'))
     target_imgdir = os.path.join(wkspace, 'images')
@@ -488,7 +483,7 @@ def process_primary_automation_loop():
             safe_upload_to_youtube(fully_finalized_output, os.path.join(wkspace, "thumbnail.jpg"), vid_ttl, f"Complete Highlights Recap: {vid_ttl}\nGenerated automatically via AI Cloud System.")
             
             with open("processed_urls.txt", "a", encoding="utf-8") as fwx_docv: fwx_docv.write(lns+"\n")
-            print("================ 🎯 Complete Workflow Operations executed successfully seamlessly! 💯 ================\n")
+            print("================ 🎯 Workflow Executed Seamlessly! 💯 ================\n")
 
         except Exception as errp: traceback.print_exc()
 
