@@ -14,10 +14,10 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4 # v3 থেকে v4-এ আপডেট করা হয়েছে (Node 24 সাপোর্ট ও দ্রুত রেন্ডারিংয়ের জন্য)
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5 # v4 থেকে v5-এ আপডেট করা হয়েছে
       with:
         python-version: '3.10'
 
