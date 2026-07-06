@@ -85,7 +85,7 @@ def group_paragraphs(paragraphs, min_words=80):
     
     if temp:
         temp_word_count = len(" ".join(temp).split())
-        if temp_word_count < min_words and groups:
+        if temp_word_count < min_words& groups:
             last_group = groups.pop()
             groups.append(last_group + "\n\n" + "\n\n".join(temp))
         else:
@@ -410,12 +410,36 @@ def get_audio_duration(audio_path):
         return float(result.stdout.strip())
     except: return 0.0
 
-def escape_subtitles_path(path_str):
-    escaped = os.path.abspath(path_str).replace("\\", "/")
-    if ":" in escaped:
-        drive, rest = escaped.split(":", 1)
-        escaped = f"{drive}\\:{rest}"
-    return escaped
+def extract_title_from_url(url):
+    try:
+        # ইউআরএল পাথ থেকে ক্যাটাগরি ও স্লাগ আলাদা করা
+        parsed = urllib.parse.urlparse(url)
+        path = parsed.path.strip("/")
+        
+        segments = [s for s in path.split("/") if s.strip()]
+        if not segments:
+            return ""
+        last_segment = segments[-1]
+        
+        # ফাইলের এক্সটেনশন যেমন .html, .htm, .php থাকলে ছেঁটে ফেলা
+        last_segment = re.sub(r'\.(html|htm|php|aspx|asp)$', '', last_segment, flags=re.IGNORECASE)
+        
+        # টাইটেলের শেষের ট্রেইলিং সংখ্যা (যেমন আইডি নম্বর '-035022849') মুছে ফেলা
+        last_segment = re.sub(r'-[0-9]+$', '', last_segment)
+        
+        # ড্যাশ বা আন্ডারস্কোর তুলে দিয়ে প্রতিটি শব্দ স্পেস দিয়ে আলাদা করা
+        raw_title = last_segment.replace("-", " ").replace("_", " ").strip()
+        
+        # প্রফেশনাল টাইটেল কেসে কনভার্ট করা (যেমন: LeBron James Cavaliers)
+        cleaned_title = raw_title.title()
+        
+        # টাইটেলটি যদি অতি ক্ষুদ্র বা সম্পূর্ণ সংখ্যা হয় তবে খালি রিটার্ন করবে ফলব্যাকের জন্য
+        if len(cleaned_title) < 8 or cleaned_title.isdigit():
+            return ""
+            
+        return cleaned_title
+    except:
+        return ""
 
 def process_primary_automation_loop():
     if not os.path.exists("config.json"): return
@@ -513,12 +537,23 @@ def process_primary_automation_loop():
             raw_paras = text_chunk_collected.split("\n\n")
             raw_paras = [p.strip() for p in raw_paras if p.strip()]
 
+            # পুরো আর্টিকেলের একটি মূল গ্লোবাল বিষয়বস্তু (NBA/SpaceX/Golf ইত্যাদি নির্বিশেষে নিরপেক্ষ) ডিটেক্ট করা হলো
+            global_subject = get_primary_keyword_app_logic(text_chunk_collected)
+
+            # আরএসএস ফিডে টাইটেল না থাকলে, প্রথমে স্লাগ বা লিংক থেকে ডাইনামিক টাইটেল রিকভারি করা হবে
+            if not vid_ttl.strip():
+                extracted_ttl = extract_title_from_url(lns)
+                if extracted_ttl:
+                    vid_ttl = extracted_ttl
+                    print(f"✍️ [Title Recovery] Recovered title from URL slug: '{vid_ttl}'")
+                else:
+                    # লিংক থেকে না পাওয়া গেলে খেলোয়াড় বা মূল বিষয়ের নাম দিয়ে প্রফেশনাল টাইটেল তৈরি হবে
+                    vid_ttl = f"{global_subject} - Latest Highlights & Update"
+                    print(f"✍️ [Title Recovery] Generated dynamic title from global subject: '{vid_ttl}'")
+
             # কন্ডিশন ১: ভিডিওর দৈর্ঘ্য ৫ মিনিটের কম হলে (300 সেকেন্ডের নিচে)
             if calc_tlength < 300.0:
                 print("🟢 Video duration < 5 mins. Processing as a single unified timeline...")
-                
-                # সম্পূর্ণ ভিডিওর জন্য একটি একক কীওয়ার্ড বের করা হলো
-                global_subject = get_primary_keyword_app_logic(text_chunk_collected)
                 
                 images_dir = os.path.join(wkspace, "images")
                 targ_pcdir = os.path.join(wkspace, 'processed_frames')
@@ -650,7 +685,7 @@ def process_primary_automation_loop():
                 clx_bkg = hex_to_ass_color(user_settings["bg_color"], user_settings.get("bg_opacity", 0.5))
                 stylstr_for_subs = f"FontName=Arial,FontSize={user_settings['font_size']},PrimaryColour={clx_pri},BackColour={clx_bkg},BorderStyle={user_settings['border_style']},Outline=2,Shadow=1,Alignment=2,MarginV={user_settings['margin_v']}"
 
-                safe_srt_path = os.path.relpath(path_srt).replace("\\", "/").replace("'", "'\\''")
+                safe_srt_path = os.relpath(path_srt).replace("\\", "/").replace("'", "'\\''")
                 tclmstr_subtitles_filter = f"subtitles='{safe_srt_path}':force_style='{stylstr_for_subs}'"
 
                 subs_cmd = [
@@ -819,7 +854,7 @@ def process_primary_automation_loop():
                     stylstr_for_subs = f"FontName=Arial,FontSize={user_settings['font_size']},PrimaryColour={clx_pri},BackColour={clx_bkg},BorderStyle={user_settings['border_style']},Outline=2,Shadow=1,Alignment=2,MarginV={user_settings['margin_v']}"
 
                     # আপেক্ষিক পাথ (Relative Path) ডিক্লারেশন সেশন
-                    safe_srt_path = os.path.relpath(path_srt_grp).replace("\\", "/").replace("'", "'\\''")
+                    safe_srt_path = os.relpath(path_srt_grp).replace("\\", "/").replace("'", "'\\''")
                     tclmstr_subtitles_filter = f"subtitles='{safe_srt_path}':force_style='{stylstr_for_subs}'"
 
                     subs_cmd = [
