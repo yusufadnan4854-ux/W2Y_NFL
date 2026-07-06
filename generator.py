@@ -103,7 +103,7 @@ def get_primary_keyword_app_logic(text):
     filtered = [w for w in words if w.lower() not in stop_words]
     
     if len(filtered) < 2: 
-        return "NBA Basketball match"
+        return "Latest Update" # সম্পূর্ণ সর্বজনীন ও নিরপেক্ষ ফলব্যাক সেট করা হলো
         
     most_common = Counter(filtered).most_common(2)
     keyword = f"{most_common[0][0]} {most_common[1][0]}"
@@ -132,7 +132,8 @@ def search_vercel_cloud_bridge(keyword, engine="ddg"):
 def search_bing_direct_photos(keyword, max_results=20):
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0 Safari/537.36'}
-        url = f"https://www.bing.com/images/async?q={urllib.parse.quote(keyword + ' NBA basketball')}&first=1&count=25"
+        # হার্ডকোডেড বাস্কেটবল কীওয়ার্ড বাদ দিয়ে সম্পূর্ণ নিরপেক্ষ ডাইনামিক সার্চ কুয়েরি করা হলো
+        url = f"https://www.bing.com/images/async?q={urllib.parse.quote(keyword)}&first=1&count=25"
         r = requests.get(url, headers=headers, timeout=8)
         if r.status_code == 200:
             urls = re.findall(r'murl&quot;:&quot;(http[^&]+)&quot;', r.text) or re.findall(r'"murl":"(http[^"]+)"', r.text)
@@ -150,7 +151,8 @@ def search_wikimedia_images(keyword, max_results=15):
             "action": "query",
             "format": "json",
             "generator": "search",
-            "gsrsearch": f"filetype:bitmap {keyword} basketball",
+            # হার্ডকোডেড বাস্কেটবল কীওয়ার্ড বাদ দিয়ে সম্পূর্ণ ডাইনামিক সার্চ কুয়েরি করা হলো
+            "gsrsearch": f"filetype:bitmap {keyword}",
             "gsrlimit": max_results,
             "prop": "imageinfo",
             "iiprop": "url"
@@ -169,7 +171,7 @@ def search_wikimedia_images(keyword, max_results=15):
     except: pass
     return []
 
-def scrape_images_strictly_web(title, body_text, embedded_photos):
+def scrape_images_strictly_web(title, body_text, embedded_photos, global_subject=""):
     candidates = []
     
     for hero_p in embedded_photos:
@@ -177,26 +179,34 @@ def scrape_images_strictly_web(title, body_text, embedded_photos):
         
     subject = get_primary_keyword_app_logic(body_text)
 
+    # ডাইনামিক কনটেক্সট লক প্যারামিটার (সব টপিকের জন্য ১০০% নিরপেক্ষ)
+    if global_subject and global_subject.lower() not in subject.lower():
+        search_query = f"{subject} {global_subject}"
+    else:
+        search_query = subject
+
+    print(f"🎯 [Context Lock Active] Combining keywords for targeted search: '{search_query}'")
+
     # ১ম প্রায়োরিটি: ডাকডাকগো (ভারসেল ক্লাউড ব্রিজের মাধ্যমে)
-    ddg_pics = search_vercel_cloud_bridge(subject, engine="ddg")
+    ddg_pics = search_vercel_cloud_bridge(search_query, engine="ddg")
     candidates.extend(ddg_pics)
 
     # ২য় প্রায়োরিটি: বিং ইমেজ সার্চ (ভারসেল ক্লাউড ব্রিজের মাধ্যমে)
     if len(candidates) < 15:
-        bing_pics = search_vercel_cloud_bridge(subject, engine="bing")
+        bing_pics = search_vercel_cloud_bridge(search_query, engine="bing")
         candidates.extend(bing_pics)
 
     # ৩য় প্রায়োরিটি: উইকিমিডিয়া কমন্স (ভারসেল ক্লাউড ব্রিজের মাধ্যমে)
     if len(candidates) < 8:
-        wiki_pics = search_vercel_cloud_bridge(subject, engine="wiki")
+        wiki_pics = search_vercel_cloud_bridge(search_query, engine="wiki")
         candidates.extend(wiki_pics)
 
     # ডিরেক্ট সোর্স ব্যাকআপ ফিল্টার (যদি এপিআই কোনো রেসপন্স না দেয় বা অফলাইন থাকে)
     if len(candidates) < 8:
-        direct_pics = search_bing_direct_photos(subject, max_results=20)
+        direct_pics = search_bing_direct_photos(search_query, max_results=20)
         candidates.extend(direct_pics)
     if len(candidates) < 8:
-        wiki_pics = search_wikimedia_images(subject, max_results=15)
+        wiki_pics = search_wikimedia_images(search_query, max_results=15)
         candidates.extend(wiki_pics)
 
     return list(dict.fromkeys(candidates))
@@ -282,6 +292,7 @@ def render_segment_by_ffmpeg(clip_index, segment_duration, img_obj, output_segme
     frame_count = max(int(segment_duration * 25), 10)
     
     if img_obj["type"] == "landscape":
+        # সায়েন্টিফিক নোটেশন বাগ এড়াতে গাণিতিক হিসাব সরাসরি FFmpeg এ করা হচ্ছে
         step_str = f"{0.15 / frame_count:.6f}"
         if clip_index % 2 == 0:
             lens_filter = f"zoompan=z='min(1.15, zoom+{step_str})':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={frame_count}:s=1920x1080:fps=25"
@@ -403,13 +414,6 @@ def get_audio_duration(audio_path):
         return float(result.stdout.strip())
     except: return 0.0
 
-def escape_subtitles_path(path_str):
-    escaped = os.path.abspath(path_str).replace("\\", "/")
-    if ":" in escaped:
-        drive, rest = escaped.split(":", 1)
-        escaped = f"{drive}\\:{rest}"
-    return escaped
-
 def process_primary_automation_loop():
     if not os.path.exists("config.json"): return
     with open("config.json", "r", encoding="utf-8") as cf: user_settings = json.load(cf)
@@ -494,6 +498,9 @@ def process_primary_automation_loop():
         raw_paras = text_chunk_collected.split("\n\n")
         paragraph_groups = group_paragraphs(raw_paras, min_words=80)
 
+        # পুরো আর্টিকেলের একটি মূল গ্লোবাল বিষয়বস্তু (NBA/SpaceX/Golf ইত্যাদি নির্বিশেষে নিরপেক্ষ) ডিটেক্ট করা হলো
+        global_subject = get_primary_keyword_app_logic(text_chunk_collected)
+
         print(f"📝 Split complete. Grouped {len(raw_paras)} raw paragraphs into {len(paragraph_groups)} consolidated paragraph clusters.")
 
         rendered_paragraph_videos = []
@@ -519,7 +526,8 @@ def process_primary_automation_loop():
                 calc_tlength = get_audio_duration(path_mp3)
 
                 grp_keyword = get_primary_keyword_app_logic(grp_text)
-                candidate_image_urls = scrape_images_strictly_web(vid_ttl, grp_text, embedded_page_photos)
+                # গ্লোবাল সাবজেক্ট পাস করার মাধ্যমে যেকোনো টপিকের ছবির অ্যাকুরেসি বজায় রাখা হলো
+                candidate_image_urls = scrape_images_strictly_web(vid_ttl, grp_text, embedded_page_photos, global_subject=global_subject)
 
                 word_count = len(grp_text.split())
                 num_images_to_download = max(2, min(20, word_count // 15))
@@ -548,7 +556,7 @@ def process_primary_automation_loop():
 
                 if not dflocst:
                     print("⚠️ No direct photos. Running fallback search with general title keywords...")
-                    fallback_urls = scrape_images_strictly_web(vid_ttl, vid_ttl, [])
+                    fallback_urls = scrape_images_strictly_web(vid_ttl, vid_ttl, [], global_subject=global_subject)
                     for image_link in fallback_urls[:5]:
                         try:
                             rd = requests.get(image_link, timeout=5, headers=headers)
