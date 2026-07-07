@@ -15,11 +15,11 @@ class ControlPanelApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("AI Video Generator - Control Panel v2.6")
-        self.geometry("980x680") # Height slightly increased
+        self.title("AI Video Generator - Control Panel v2.7")
+        self.geometry("980x740") 
         self.resizable(False, False)
 
-        # Main Title Header (Packed TOP)
+        # Main Title Header
         self.title_label = ctk.CTkLabel(self, text="AI Automation Settings Panel", font=ctk.CTkFont(size=22, weight="bold"))
         self.title_label.pack(side="top", pady=(15, 10))
 
@@ -43,7 +43,7 @@ class ControlPanelApp(ctk.CTk):
 
 
         # ==========================================
-        # Main Layout Container (Middle content expanded)
+        # Main Layout Container
         # ==========================================
         self.main_container = ctk.CTkFrame(self, fg_color="transparent")
         self.main_container.pack(side="top", fill="both", expand=True, padx=20, pady=(0, 10))
@@ -77,7 +77,6 @@ class ControlPanelApp(ctk.CTk):
         self.body_keyword_entry = ctk.CTkEntry(self.col_left, height=32)
         self.body_keyword_entry.pack(fill="x", padx=20, pady=(0, 12))
 
-        # Horizontal group for Words & Age limits
         self.num_group = ctk.CTkFrame(self.col_left, fg_color="transparent")
         self.num_group.pack(fill="x", padx=18, pady=(0, 12))
         self.num_group.grid_columnconfigure((0, 1), weight=1)
@@ -96,7 +95,7 @@ class ControlPanelApp(ctk.CTk):
         self.age_entry = ctk.CTkEntry(f_age, height=32)
         self.age_entry.pack(fill="x")
 
-        # *নতুন ফিচার* Image Search Appender Settings
+        # Image Search Appender Settings
         ctk.CTkLabel(self.col_left, text="Advanced AI Image Search", font=ctk.CTkFont(size=14, weight="bold"), text_color="#1abc9c").pack(pady=(15, 5))
         
         self.switch_var = ctk.IntVar(value=1)
@@ -123,7 +122,6 @@ class ControlPanelApp(ctk.CTk):
         ], height=32)
         self.voice_combo.pack(fill="x", padx=20, pady=(0, 12))
 
-        # Horizontal group for Color Pickers
         self.color_group = ctk.CTkFrame(self.col_right, fg_color="transparent")
         self.color_group.pack(fill="x", padx=18, pady=(0, 12))
         self.color_group.grid_columnconfigure((0, 1), weight=1)
@@ -135,21 +133,21 @@ class ControlPanelApp(ctk.CTk):
         self.text_color_entry = ctk.CTkEntry(f_tcolor, height=32)
         self.text_color_entry.pack(fill="x")
 
-        # ৮. Background Box Overlay
+        # ৮. Background Box Color
         f_bcolor = ctk.CTkFrame(self.color_group, fg_color="transparent")
         f_bcolor.grid(row=0, column=1, sticky="ew", padx=2)
         self._create_label(f_bcolor, "Overlay Color (HEX):")
         self.bg_color_entry = ctk.CTkEntry(f_bcolor, height=32)
         self.bg_color_entry.pack(fill="x")
 
-        # ৯. Overlay Style Dropdown
+        # ৯. Overlay Style
         self._create_label(self.col_right, "Subtitle Visual Style Template:")
         self.style_combo = ctk.CTkComboBox(self.col_right, values=["Semi-Transparent Box (Style 3)", "Outline + Drop Shadow (Style 1)"], height=32)
-        self.style_combo.pack(fill="x", padx=20, pady=(0, 15))
+        self.style_combo.pack(fill="x", padx=20, pady=(0, 10))
 
         # --- Dynamic UI Sliders Panel with Custom Feedback ---
         self.sliders_bg = ctk.CTkFrame(self.col_right, fg_color="#2b2b2b", corner_radius=6)
-        self.sliders_bg.pack(fill="x", padx=20, pady=(0, 10))
+        self.sliders_bg.pack(fill="x", padx=20, pady=(0, 5))
 
         # ৯.৫ SFX Volume Slider Box
         f_sfx = ctk.CTkFrame(self.sliders_bg, fg_color="transparent")
@@ -159,6 +157,15 @@ class ControlPanelApp(ctk.CTk):
         self.val_sfx.pack(side="right")
         self.sfx_volume_slider = ctk.CTkSlider(self.sliders_bg, from_=0.0, to=1.0, number_of_steps=100, command=self._update_sfx, button_color="#1abc9c")
         self.sfx_volume_slider.pack(padx=15, pady=(0, 5), fill="x")
+
+        # ৯.৮ Overlay Opacity 
+        f_opac = ctk.CTkFrame(self.sliders_bg, fg_color="transparent")
+        f_opac.pack(fill="x", padx=15, pady=(8,0))
+        ctk.CTkLabel(f_opac, text="Subtitle Overlay Opacity", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
+        self.val_opac = ctk.CTkLabel(f_opac, text="0%", font=ctk.CTkFont(size=12, weight="bold"), text_color="#f39c12")
+        self.val_opac.pack(side="right")
+        self.bg_opacity_slider = ctk.CTkSlider(self.sliders_bg, from_=0.0, to=1.0, number_of_steps=100, command=self._update_opacity, button_color="#f39c12", button_hover_color="#e67e22")
+        self.bg_opacity_slider.pack(padx=15, pady=(0, 5), fill="x")
 
         # ১০. Sub Margin Space Slider Box
         f_margin = ctk.CTkFrame(self.sliders_bg, fg_color="transparent")
@@ -176,14 +183,16 @@ class ControlPanelApp(ctk.CTk):
         self.val_size = ctk.CTkLabel(f_size, text="0px", font=ctk.CTkFont(size=12, weight="bold"), text_color="#e74c3c")
         self.val_size.pack(side="right")
         self.font_size_slider = ctk.CTkSlider(self.sliders_bg, from_=12, to=36, number_of_steps=24, command=self._update_size, button_color="#e74c3c", button_hover_color="#c0392b")
-        self.font_size_slider.pack(padx=15, pady=(0, 15), fill="x")
+        self.font_size_slider.pack(padx=15, pady=(0, 10), fill="x")
 
         self.load_defaults()
 
     # --- Live Update Label Functions for Sliders ---
     def _update_sfx(self, val):
-        percent_val = int(float(val) * 100)
-        self.val_sfx.configure(text=f"{percent_val}%")
+        self.val_sfx.configure(text=f"{int(float(val) * 100)}%")
+
+    def _update_opacity(self, val):
+        self.val_opac.configure(text=f"{int(float(val) * 100)}%")
 
     def _update_margin(self, val):
         self.val_margin.configure(text=f"{int(float(val))}px space")
@@ -204,8 +213,8 @@ class ControlPanelApp(ctk.CTk):
             self.suffix_entry.configure(state="disabled", placeholder_text="(Feature Disabled by Switch)")
 
     def load_defaults(self):
-        # Set dynamic Default fallback slider UI initial texts explicitly to avoid jumping effect on first drag.
         sfx_val_loaded = 0.3
+        opac_val_loaded = 0.6
         mar_val_loaded = 45
         fsize_val_loaded = 22
         
@@ -223,8 +232,8 @@ class ControlPanelApp(ctk.CTk):
                 self.bg_color_entry.insert(0, data.get("bg_color", ""))
                 self.style_combo.set("Semi-Transparent Box (Style 3)" if data.get("border_style") == 3 else "Outline + Drop Shadow (Style 1)")
                 
-                # Fetch Slider Values
                 sfx_val_loaded = float(data.get("sfx_volume", 0.3))
+                opac_val_loaded = float(data.get("bg_opacity", 0.6))
                 fsize_val_loaded = float(data.get("font_size", 22))
                 mar_val_loaded = float(data.get("margin_v", 45))
                 
@@ -240,7 +249,6 @@ class ControlPanelApp(ctk.CTk):
             except Exception:
                 pass
         else:
-            # First install manual placeholders!
             self.url_entry.insert(0, "https://sports.yahoo.com/nba/rss.xml")
             self.keyword_entry.insert(0, "odds, fantasy, betting")
             self.body_keyword_entry.insert(0, "arrested")
@@ -252,11 +260,13 @@ class ControlPanelApp(ctk.CTk):
             self.append_toggle.select() 
             self._toggle_suffix()
 
-        # Update Visuals properly synced directly after initial parameters mapped up top
         self.sfx_volume_slider.set(sfx_val_loaded)
+        self.bg_opacity_slider.set(opac_val_loaded)
         self.font_size_slider.set(fsize_val_loaded)
         self.margin_v_slider.set(mar_val_loaded)
+
         self._update_sfx(sfx_val_loaded)
+        self._update_opacity(opac_val_loaded)
         self._update_margin(mar_val_loaded)
         self._update_size(fsize_val_loaded)
 
@@ -287,7 +297,7 @@ class ControlPanelApp(ctk.CTk):
             "font_color": self.text_color_entry.get().strip(),
             "bg_color": self.bg_color_entry.get().strip(),
             "border_style": border_style,
-            "bg_opacity": 0.6,  
+            "bg_opacity": float(self.bg_opacity_slider.get()),  
             "sfx_volume": float(self.sfx_volume_slider.get()),
             "font_size": int(self.font_size_slider.get()),
             "margin_v": int(self.margin_v_slider.get()),
