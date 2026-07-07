@@ -4,6 +4,7 @@ import subprocess
 import traceback
 import customtkinter as ctk
 
+# --- Modern UI Configuration ---
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
@@ -14,100 +15,200 @@ class ControlPanelApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("AI Video Generator - Master Settings Panel v2.3")
-        self.geometry("680x920") 
+        self.title("AI Video Generator - Control Panel v2.6")
+        self.geometry("980x680") # Height slightly increased
         self.resizable(False, False)
 
-        # টাইটেল
-        self.title_label = ctk.CTkLabel(self, text="AI Video Automation Config Manager", font=ctk.CTkFont(size=18, weight="bold"))
-        self.title_label.pack(pady=12)
+        # Main Title Header (Packed TOP)
+        self.title_label = ctk.CTkLabel(self, text="AI Automation Settings Panel", font=ctk.CTkFont(size=22, weight="bold"))
+        self.title_label.pack(side="top", pady=(15, 10))
 
-        # ১. আরএসএস ইউআরএল (একাধিক দেওয়া যাবে কমা দিয়ে)
-        ctk.CTkLabel(self, text="Target RSS Feed URLs (comma separated for multiple feeds):", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=40, pady=(6, 2))
-        self.url_entry = ctk.CTkEntry(self, width=600, height=32)
-        self.url_entry.pack(padx=40, pady=(0, 6))
+        # ==========================================
+        # FOOTER (Save Button - Locked at BOTTOM first)
+        # ==========================================
+        self.footer = ctk.CTkFrame(self, fg_color="transparent")
+        self.footer.pack(side="bottom", fill="x", padx=20, pady=(5, 15))
 
-        # ২. টাইটেল নিষিদ্ধ কিওয়ার্ড ফিল্টার
-        ctk.CTkLabel(self, text="Exclude Keywords in Title (comma separated):", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=40, pady=(6, 2))
-        self.keyword_entry = ctk.CTkEntry(self, width=600, height=32)
-        self.keyword_entry.pack(padx=40, pady=(0, 6))
+        self.save_btn = ctk.CTkButton(
+            self.footer, 
+            text="💾 Save Configurations & Deploy settings to Git Cloud Server", 
+            fg_color="#2ecc71", hover_color="#27ae60",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            height=45, command=self.save_and_push
+        )
+        self.save_btn.pack(fill="x")
 
-        # ৩. আর্টিকেলের ভেতরের নিষিদ্ধ কিওয়ার্ড ফিল্টার
-        ctk.CTkLabel(self, text="Exclude Keywords inside Article Body (comma separated):", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=40, pady=(6, 2))
-        self.body_keyword_entry = ctk.CTkEntry(self, width=600, height=32)
-        self.body_keyword_entry.pack(padx=40, pady=(0, 6))
+        self.status_lbl = ctk.CTkLabel(self.footer, text="Status: Connected | Systems Initialized", text_color="gray", font=ctk.CTkFont(size=11))
+        self.status_lbl.pack(pady=(8,0))
 
-        # ৪. মিনিমাম ওয়ার্ড ফিল্টার
-        ctk.CTkLabel(self, text="Minimum Article Word Count (to make video):", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=40, pady=(6, 2))
-        self.word_count_entry = ctk.CTkEntry(self, width=600, height=32, placeholder_text="e.g. 200")
-        self.word_count_entry.pack(padx=40, pady=(0, 6))
 
-        # ৫. আর্টিকেল টাইমিং রেঞ্জ ফিল্টার (সম্পূর্ণ ফ্লেক্সিবল ইনপুট)
-        ctk.CTkLabel(self, text="Max Article Age in Hours (e.g. 1 for 1 hour, 0.5 for 30 mins, 9999 for All Articles):", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=40, pady=(6, 2))
-        self.age_entry = ctk.CTkEntry(self, width=600, height=32, placeholder_text="e.g. 24")
-        self.age_entry.pack(padx=40, pady=(0, 6))
+        # ==========================================
+        # Main Layout Container (Middle content expanded)
+        # ==========================================
+        self.main_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.main_container.pack(side="top", fill="both", expand=True, padx=20, pady=(0, 10))
+        self.main_container.grid_columnconfigure((0, 1), weight=1)
 
-        # ৬. ভয়েস সিলেকশন
-        ctk.CTkLabel(self, text="Select AI Voice:", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=40, pady=(6, 2))
-        self.voices_list = [
+        # Mapping frames safely 
+        self.col_left = ctk.CTkFrame(self.main_container)
+        self.col_left.grid(row=0, column=0, padx=(0, 10), pady=0, sticky="nsew")
+
+        self.col_right = ctk.CTkFrame(self.main_container)
+        self.col_right.grid(row=0, column=1, padx=(10, 0), pady=0, sticky="nsew")
+
+
+        # ==========================================
+        # LEFT COLUMN (Data & Content Filters)
+        # ==========================================
+        ctk.CTkLabel(self.col_left, text="Content & Feed Filters", font=ctk.CTkFont(size=15, weight="bold")).pack(pady=(10, 5))
+
+        # ১. RSS URLs
+        self._create_label(self.col_left, "Target RSS Feed URLs (comma separated):")
+        self.url_entry = ctk.CTkEntry(self.col_left, height=32)
+        self.url_entry.pack(fill="x", padx=20, pady=(0, 12))
+
+        # ২. Title Exclude Keywords
+        self._create_label(self.col_left, "Exclude Keywords in Title (comma separated):")
+        self.keyword_entry = ctk.CTkEntry(self.col_left, height=32)
+        self.keyword_entry.pack(fill="x", padx=20, pady=(0, 12))
+
+        # ৩. Body Exclude Keywords
+        self._create_label(self.col_left, "Exclude Keywords inside Article (comma separated):")
+        self.body_keyword_entry = ctk.CTkEntry(self.col_left, height=32)
+        self.body_keyword_entry.pack(fill="x", padx=20, pady=(0, 12))
+
+        # Horizontal group for Words & Age limits
+        self.num_group = ctk.CTkFrame(self.col_left, fg_color="transparent")
+        self.num_group.pack(fill="x", padx=18, pady=(0, 12))
+        self.num_group.grid_columnconfigure((0, 1), weight=1)
+        
+        # ৪. Minimum Word
+        f_minword = ctk.CTkFrame(self.num_group, fg_color="transparent")
+        f_minword.grid(row=0, column=0, sticky="ew", padx=2)
+        self._create_label(f_minword, "Min Article Word Count:")
+        self.word_count_entry = ctk.CTkEntry(f_minword, height=32)
+        self.word_count_entry.pack(fill="x")
+        
+        # ৫. Max Age Hours
+        f_age = ctk.CTkFrame(self.num_group, fg_color="transparent")
+        f_age.grid(row=0, column=1, sticky="ew", padx=2)
+        self._create_label(f_age, "Max Article Age (Hours):")
+        self.age_entry = ctk.CTkEntry(f_age, height=32)
+        self.age_entry.pack(fill="x")
+
+        # *নতুন ফিচার* Image Search Appender Settings
+        ctk.CTkLabel(self.col_left, text="Advanced AI Image Search", font=ctk.CTkFont(size=14, weight="bold"), text_color="#1abc9c").pack(pady=(15, 5))
+        
+        self.switch_var = ctk.IntVar(value=1)
+        self.append_toggle = ctk.CTkSwitch(self.col_left, text="Append Suffix if subject is NOT a player name", 
+                                           command=self._toggle_suffix, variable=self.switch_var, font=ctk.CTkFont(size=12))
+        self.append_toggle.pack(anchor="w", padx=20, pady=(5, 5))
+        
+        self.suffix_entry = ctk.CTkEntry(self.col_left, height=32, placeholder_text="e.g. Wallpapers, Stadium HD, Court etc.")
+        self.suffix_entry.pack(fill="x", padx=20, pady=(0, 12))
+
+
+        # ==========================================
+        # RIGHT COLUMN (Style, Audio & Look)
+        # ==========================================
+        ctk.CTkLabel(self.col_right, text="Voice & Aesthetic Styling", font=ctk.CTkFont(size=15, weight="bold")).pack(pady=(10, 5))
+
+        # ৬. AI Voice
+        self._create_label(self.col_right, "AI Speaker / Voice Selection:")
+        self.voice_combo = ctk.CTkComboBox(self.col_right, values=[
             "en-US-BrianNeural (US Male - Deep/Professional)",
             "en-US-GuyNeural (US Male - Casual)",
-            "en-GB-RyanNeural (UK Male - Elegant)"
-        ]
-        self.voice_combo = ctk.CTkComboBox(self, values=self.voices_list, width=600, height=32)
-        self.voice_combo.pack(padx=40, pady=(0, 6))
+            "en-GB-RyanNeural (UK Male - Elegant)",
+            "en-US-EricNeural (US Male - Sports Energy)"
+        ], height=32)
+        self.voice_combo.pack(fill="x", padx=20, pady=(0, 12))
 
-        # ७. সাবটাইটেল টেক্সট কালার
-        ctk.CTkLabel(self, text="Subtitle Text Color (HEX):", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=40, pady=(6, 2))
-        self.text_color_entry = ctk.CTkEntry(self, width=600, height=32)
-        self.text_color_entry.pack(padx=40, pady=(0, 6))
+        # Horizontal group for Color Pickers
+        self.color_group = ctk.CTkFrame(self.col_right, fg_color="transparent")
+        self.color_group.pack(fill="x", padx=18, pady=(0, 12))
+        self.color_group.grid_columnconfigure((0, 1), weight=1)
 
-        # ৮. ওভারলে কালার
-        ctk.CTkLabel(self, text="Background Overlay Color (HEX):", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=40, pady=(6, 2))
-        self.bg_color_entry = ctk.CTkEntry(self, width=600, height=32)
-        self.bg_color_entry.pack(padx=40, pady=(0, 6))
+        # ७. Sub Color
+        f_tcolor = ctk.CTkFrame(self.color_group, fg_color="transparent")
+        f_tcolor.grid(row=0, column=0, sticky="ew", padx=2)
+        self._create_label(f_tcolor, "Subtitle Color (HEX):")
+        self.text_color_entry = ctk.CTkEntry(f_tcolor, height=32)
+        self.text_color_entry.pack(fill="x")
 
-        # ৯. ওভারলে ব্যাকগ্রাউন্ড স্টাইল
-        ctk.CTkLabel(self, text="Overlay Style:", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=40, pady=(6, 2))
-        self.style_combo = ctk.CTkComboBox(self, values=["Semi-Transparent Box (Style 3)", "Outline + Drop Shadow (Style 1)"], width=600, height=32)
-        self.style_combo.pack(padx=40, pady=(0, 6))
+        # ৮. Background Box Overlay
+        f_bcolor = ctk.CTkFrame(self.color_group, fg_color="transparent")
+        f_bcolor.grid(row=0, column=1, sticky="ew", padx=2)
+        self._create_label(f_bcolor, "Overlay Color (HEX):")
+        self.bg_color_entry = ctk.CTkEntry(f_bcolor, height=32)
+        self.bg_color_entry.pack(fill="x")
 
-        # ৯.৫ সাউন্ড ইফেক্ট ভলিউম
-        ctk.CTkLabel(self, text="Sound Effects Volume (0.0 = Mute, 0.3 = 30%, 1.0 = Max):", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", padx=40, pady=(6, 2))
-        self.sfx_volume_slider = ctk.CTkSlider(self, from_=0.0, to=1.0, number_of_steps=100, width=600)
-        self.sfx_volume_slider.pack(padx=40, pady=(0, 6))
-        self.sfx_volume_slider.set(0.3)
+        # ৯. Overlay Style Dropdown
+        self._create_label(self.col_right, "Subtitle Visual Style Template:")
+        self.style_combo = ctk.CTkComboBox(self.col_right, values=["Semi-Transparent Box (Style 3)", "Outline + Drop Shadow (Style 1)"], height=32)
+        self.style_combo.pack(fill="x", padx=20, pady=(0, 15))
 
-        # ১০. ফন্ট সাইজ এবং পজিশন স্লাইডার
-        self.slider_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.slider_frame.pack(fill="x", padx=40, pady=8)
+        # --- Dynamic UI Sliders Panel with Custom Feedback ---
+        self.sliders_bg = ctk.CTkFrame(self.col_right, fg_color="#2b2b2b", corner_radius=6)
+        self.sliders_bg.pack(fill="x", padx=20, pady=(0, 10))
 
-        self.font_size_slider = ctk.CTkSlider(self.slider_frame, from_=12, to=36, number_of_steps=24, width=280)
-        self.font_size_slider.pack(side="left", padx=(0, 20))
-        self.font_size_slider.set(22)
+        # ৯.৫ SFX Volume Slider Box
+        f_sfx = ctk.CTkFrame(self.sliders_bg, fg_color="transparent")
+        f_sfx.pack(fill="x", padx=15, pady=(8,0))
+        ctk.CTkLabel(f_sfx, text="SFX Background Audio Level", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
+        self.val_sfx = ctk.CTkLabel(f_sfx, text="0%", font=ctk.CTkFont(size=12, weight="bold"), text_color="#1abc9c")
+        self.val_sfx.pack(side="right")
+        self.sfx_volume_slider = ctk.CTkSlider(self.sliders_bg, from_=0.0, to=1.0, number_of_steps=100, command=self._update_sfx, button_color="#1abc9c")
+        self.sfx_volume_slider.pack(padx=15, pady=(0, 5), fill="x")
+
+        # ১০. Sub Margin Space Slider Box
+        f_margin = ctk.CTkFrame(self.sliders_bg, fg_color="transparent")
+        f_margin.pack(fill="x", padx=15, pady=(8,0))
+        ctk.CTkLabel(f_margin, text="Subtitle Screen Spacing (Margin-Y)", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
+        self.val_margin = ctk.CTkLabel(f_margin, text="0px", font=ctk.CTkFont(size=12, weight="bold"), text_color="#3498db")
+        self.val_margin.pack(side="right")
+        self.margin_v_slider = ctk.CTkSlider(self.sliders_bg, from_=20, to=150, number_of_steps=26, command=self._update_margin)
+        self.margin_v_slider.pack(padx=15, pady=(0, 5), fill="x")
         
-        self.margin_v_slider = ctk.CTkSlider(self.slider_frame, from_=20, to=150, number_of_steps=26, width=280)
-        self.margin_v_slider.pack(side="right")
-        self.margin_v_slider.set(45)
-
-        # সেভ এবং পুশ বাটন
-        self.save_btn = ctk.CTkButton(
-            self, 
-            text="💾 Save & Sync Settings with GitHub Cloud", 
-            fg_color="#2ecc71", 
-            hover_color="#27ae60",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            height=40,
-            command=self.save_and_push
-        )
-        self.save_btn.pack(pady=12, fill="x", padx=40)
-
-        self.status_lbl = ctk.CTkLabel(self, text="Status: Idle", text_color="gray", font=ctk.CTkFont(size=12))
-        self.status_lbl.pack()
+        # ১১. Font Size Box
+        f_size = ctk.CTkFrame(self.sliders_bg, fg_color="transparent")
+        f_size.pack(fill="x", padx=15, pady=(8,0))
+        ctk.CTkLabel(f_size, text="Subtitle Typography Font Size", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
+        self.val_size = ctk.CTkLabel(f_size, text="0px", font=ctk.CTkFont(size=12, weight="bold"), text_color="#e74c3c")
+        self.val_size.pack(side="right")
+        self.font_size_slider = ctk.CTkSlider(self.sliders_bg, from_=12, to=36, number_of_steps=24, command=self._update_size, button_color="#e74c3c", button_hover_color="#c0392b")
+        self.font_size_slider.pack(padx=15, pady=(0, 15), fill="x")
 
         self.load_defaults()
 
+    # --- Live Update Label Functions for Sliders ---
+    def _update_sfx(self, val):
+        percent_val = int(float(val) * 100)
+        self.val_sfx.configure(text=f"{percent_val}%")
+
+    def _update_margin(self, val):
+        self.val_margin.configure(text=f"{int(float(val))}px space")
+
+    def _update_size(self, val):
+        self.val_size.configure(text=f"{int(float(val))}px Size")
+    # ---------------------------------------------
+
+    def _create_label(self, parent, text_str):
+        label = ctk.CTkLabel(parent, text=text_str, font=ctk.CTkFont(size=11, weight="bold"), text_color="#A9A9A9")
+        label.pack(anchor="w", padx=24 if parent in [getattr(self, 'col_left', None), getattr(self, 'col_right', None)] else 2, pady=(8, 2))
+        return label
+
+    def _toggle_suffix(self):
+        if self.switch_var.get() == 1:
+            self.suffix_entry.configure(state="normal", placeholder_text="e.g. Wallpapers, Stadium HD etc.")
+        else:
+            self.suffix_entry.configure(state="disabled", placeholder_text="(Feature Disabled by Switch)")
+
     def load_defaults(self):
+        # Set dynamic Default fallback slider UI initial texts explicitly to avoid jumping effect on first drag.
+        sfx_val_loaded = 0.3
+        mar_val_loaded = 45
+        fsize_val_loaded = 22
+        
         if os.path.exists(CONFIG_FILE):
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
@@ -121,27 +222,47 @@ class ControlPanelApp(ctk.CTk):
                 self.text_color_entry.insert(0, data.get("font_color", ""))
                 self.bg_color_entry.insert(0, data.get("bg_color", ""))
                 self.style_combo.set("Semi-Transparent Box (Style 3)" if data.get("border_style") == 3 else "Outline + Drop Shadow (Style 1)")
-                self.sfx_volume_slider.set(data.get("sfx_volume", 0.3))
-                self.font_size_slider.set(data.get("font_size", 22))
-                self.margin_v_slider.set(data.get("margin_v", 45))
-                return
+                
+                # Fetch Slider Values
+                sfx_val_loaded = float(data.get("sfx_volume", 0.3))
+                fsize_val_loaded = float(data.get("font_size", 22))
+                mar_val_loaded = float(data.get("margin_v", 45))
+                
+                if data.get("append_keyword_feature", False):
+                    self.append_toggle.select()
+                else:
+                    self.append_toggle.deselect()
+                self._toggle_suffix()
+                
+                self.suffix_entry.delete(0, 'end')
+                self.suffix_entry.insert(0, data.get("append_word_suffix", ""))
+                
             except Exception:
                 pass
+        else:
+            # First install manual placeholders!
+            self.url_entry.insert(0, "https://sports.yahoo.com/nba/rss.xml")
+            self.keyword_entry.insert(0, "odds, fantasy, betting")
+            self.body_keyword_entry.insert(0, "arrested")
+            self.word_count_entry.insert(0, "200")
+            self.age_entry.insert(0, "24") 
+            self.text_color_entry.insert(0, "#FFFFFF")
+            self.bg_color_entry.insert(0, "#000000")
+            self.style_combo.set("Semi-Transparent Box (Style 3)")
+            self.append_toggle.select() 
+            self._toggle_suffix()
 
-        # অলটারনে티브 ডিফল্টস 
-        self.url_entry.insert(0, "https://sports.yahoo.com/nba/rss.xml, https://sports.yahoo.com/nfl/rss.xml")
-        self.keyword_entry.insert(0, "odds, fantasy, betting, bet, spread, draft, preview")
-        self.body_keyword_entry.insert(0, "injury, out indefinitely, legal, court, police, arrested")
-        self.word_count_entry.insert(0, "200")
-        self.age_entry.insert(0, "24") 
-        self.text_color_entry.insert(0, "#FFFFFF")
-        self.bg_color_entry.insert(0, "#000000")
-        self.style_combo.set("Semi-Transparent Box (Style 3)")
-        self.sfx_volume_slider.set(0.3)
+        # Update Visuals properly synced directly after initial parameters mapped up top
+        self.sfx_volume_slider.set(sfx_val_loaded)
+        self.font_size_slider.set(fsize_val_loaded)
+        self.margin_v_slider.set(mar_val_loaded)
+        self._update_sfx(sfx_val_loaded)
+        self._update_margin(mar_val_loaded)
+        self._update_size(fsize_val_loaded)
 
     def save_and_push(self):
         self.save_btn.configure(state="disabled")
-        self.status_lbl.configure(text="Saving configs & Syncing with GitHub...", text_color="yellow")
+        self.status_lbl.configure(text="Processing Save Event... Pinging Github Connection.", text_color="yellow")
         self.update()
 
         border_style = 3 if "Box" in self.style_combo.get() else 1
@@ -169,7 +290,9 @@ class ControlPanelApp(ctk.CTk):
             "bg_opacity": 0.6,  
             "sfx_volume": float(self.sfx_volume_slider.get()),
             "font_size": int(self.font_size_slider.get()),
-            "margin_v": int(self.margin_v_slider.get())
+            "margin_v": int(self.margin_v_slider.get()),
+            "append_keyword_feature": bool(self.switch_var.get()),
+            "append_word_suffix": self.suffix_entry.get().strip() if bool(self.switch_var.get()) else ""
         }
 
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -177,12 +300,11 @@ class ControlPanelApp(ctk.CTk):
 
         try:
             subprocess.run(["git", "add", CONFIG_FILE], check=True)
-            subprocess.run(["git", "commit", "-m", "Master Configurations Updated [skip ci]"], check=True)
+            subprocess.run(["git", "commit", "-m", "Control Panel configuration sync pushed [skip ci]"], check=True)
             subprocess.run(["git", "push"], check=True)
-            self.status_lbl.configure(text="SUCCESS! New rules synced with GitHub Cloud.", text_color="#2ecc71")
+            self.status_lbl.configure(text="[SUCCESS] Configuration File verified and cloud-synced cleanly via Github.", text_color="#2ecc71")
         except Exception as e:
-            # গিট পুশ ফেইল হলেও লোকাল ফাইলটি কিন্তু সেভ হয়েছে, তাই ব্যবহারকারীকে সঠিক তথ্য দেওয়া হলো
-            self.status_lbl.configure(text="Saved Locally, but Git Sync Failed! Check logs.", text_color="orange")
+            self.status_lbl.configure(text="[LOCAL SAVED] Configuration kept correctly. Push to github skipped or failed.", text_color="orange")
             with open(LOG_FILE, "a") as lf:
                 lf.write(traceback.format_exc() + "\n")
         finally:

@@ -172,13 +172,34 @@ def search_wikimedia_images(keyword, max_results=15):
     except: pass
     return []
 
-def scrape_images_strictly_web(title, body_text, embedded_photos, num_images_needed=20):
+def scrape_images_strictly_web(title, body_text, embedded_photos, num_images_needed=20, append_toggle=False, append_word=""):
     candidates = []
     
     for hero_p in embedded_photos:
         candidates.append(hero_p)
         
     subject = get_primary_keyword_app_logic(body_text)
+
+    # --- Name Detection & Custom Word Appending Logic ---
+    if append_toggle and append_word:
+        # Stop-words to make sure cities, teams, or generic items aren't wrongly identified as Person Names
+        stop_phrases = {
+            'los angeles', 'golden state', 'nba basketball', 'summer league', 
+            'boston celtics', 'new york', 'miami heat', 'bay area', 'dallas mavericks', 
+            'lakers', 'latest update', 'sports news', 'league update', 'news report'
+        }
+        is_name = False
+        
+        # নামের বেসিক চেক: দুটি (Title Case) ক্যাপিটাল শব্দের সমন্বয় কিনা দেখা হচ্ছে। যেমন- "LeBron James" 
+        if subject.lower() not in stop_phrases:
+            is_name = bool(re.match(r'^([A-Z][a-zA-Z\'-]+\s+){1,2}[A-Z][a-zA-Z\'-]+$', subject.strip()))
+            
+        if not is_name:
+            subject = f"{subject} {append_word}"
+            print(f"🔧 [Modifier Action] Keyword is not a name. Custom suffix appended -> Final Search: '{subject}'")
+        else:
+            print(f"👤 [Modifier Action] Player name detected! Prefix/Suffix addition skipped -> Final Search: '{subject}'")
+    # -----------------------------------------------------
 
     ddg_pics = search_vercel_cloud_bridge(subject, engine="ddg")
     candidates.extend(ddg_pics)
@@ -440,11 +461,14 @@ def process_primary_automation_loop():
     blocked_inside_words = [bk.strip().lower() for bk in user_settings["exclude_body_keywords"].split(",") if bk.strip()]
     require_wc = user_settings.get("min_word_count", 150)
     sfx_volume = user_settings.get("sfx_volume", 0.3)
+    
+    # নতুন রুলস- এর কন্ট্রোল ভ্যালু এক্সট্রাকশন 
+    append_kwd_feature = user_settings.get("append_keyword_feature", False)
+    append_suffix = user_settings.get("append_word_suffix", "")
 
     for track_loop_counter, finalizer_target in enumerate(final_action_items):
         vid_ttl, lns = finalizer_target.get("title", ""), finalizer_target.get("link", "")
         
-        # টাইটেল সংক্রান্ত সমস্যা সমাধানের অংশ (খালি অথবা "unknown" টাইটেল পেলে লিংক থেকে উদ্ধার করবে)
         vid_ttl = str(vid_ttl).strip()
         if not vid_ttl or vid_ttl.lower() == "unknown":
             try:
@@ -454,7 +478,6 @@ def process_primary_automation_loop():
                     slug_string = re.sub(r'\.[a-zA-Z0-9]+$', '', path_segments[-1])
                     vid_ttl = slug_string.replace('-', ' ').replace('_', ' ').strip().title()
                 
-                # যদি এরপরও টাইটেল খালি আসে 
                 if not vid_ttl:
                     vid_ttl = "NBA Latest News Update"
             except Exception:
@@ -519,7 +542,8 @@ def process_primary_automation_loop():
                 num_images_to_download = max(2, min(40, total_n_segments))
                 print(f"📥 Length-based download target: downloading {num_images_to_download} images for {total_n_segments} sentences.")
 
-                candidate_image_urls = scrape_images_strictly_web(vid_ttl, text_chunk_collected, embedded_page_photos, num_images_needed=num_images_to_download)
+                # কন্ট্রোল প্যানেলের সেটিং এপ্লাই করা হলো
+                candidate_image_urls = scrape_images_strictly_web(vid_ttl, text_chunk_collected, embedded_page_photos, num_images_needed=num_images_to_download, append_toggle=append_kwd_feature, append_word=append_suffix)
 
                 successfully_got_downloads = 0
                 headers = {
@@ -544,7 +568,8 @@ def process_primary_automation_loop():
 
                 if not dflocst:
                     print("⚠️ No direct photos. Running fallback search with general title keywords...")
-                    fallback_urls = scrape_images_strictly_web(vid_ttl, vid_ttl, [], num_images_needed=num_images_to_download)
+                    # ফলব্যাকের সার্চেও কন্ট্রোল প্যানেলের সেটিং এপ্লাই করা হলো 
+                    fallback_urls = scrape_images_strictly_web(vid_ttl, vid_ttl, [], num_images_needed=num_images_to_download, append_toggle=append_kwd_feature, append_word=append_suffix)
                     for image_link in fallback_urls[:5]:
                         try:
                             rd = requests.get(image_link, timeout=5, headers=headers)
@@ -682,7 +707,9 @@ def process_primary_automation_loop():
                     print(f"📥 Cluster download target: downloading {num_images_to_download} images for {total_n_segments} sentences.")
 
                     grp_keyword = get_primary_keyword_app_logic(grp_text)
-                    candidate_image_urls = scrape_images_strictly_web(vid_ttl, grp_text, embedded_page_photos, num_images_needed=num_images_to_download)
+                    
+                    # ক্লাস্টারের সার্চেও কন্ট্রোল প্যানেলের সেটিং এপ্লাই করা হলো 
+                    candidate_image_urls = scrape_images_strictly_web(vid_ttl, grp_text, embedded_page_photos, num_images_needed=num_images_to_download, append_toggle=append_kwd_feature, append_word=append_suffix)
 
                     successfully_got_downloads = 0
                     headers = {
@@ -707,7 +734,8 @@ def process_primary_automation_loop():
 
                     if not dflocst:
                         print("⚠️ No direct photos. Running fallback search with general title keywords...")
-                        fallback_urls = scrape_images_strictly_web(vid_ttl, vid_ttl, [], num_images_needed=num_images_to_download)
+                        # ক্লাস্টারের ফলব্যাকের সার্চেও কন্ট্রোল প্যানেলের সেটিং এপ্লাই করা হলো 
+                        fallback_urls = scrape_images_strictly_web(vid_ttl, vid_ttl, [], num_images_needed=num_images_to_download, append_toggle=append_kwd_feature, append_word=append_suffix)
                         for image_link in fallback_urls[:5]:
                             try:
                                 rd = requests.get(image_link, timeout=5, headers=headers)
