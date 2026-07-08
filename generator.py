@@ -180,7 +180,7 @@ def scrape_images_strictly_web(title, body_text, embedded_photos, num_images_nee
 
     if append_toggle and append_word:
         stop_phrases = {
-            'los angeles', 'golden state', 'nba basketball', 'summer league', 
+            'los angeles', 'golden state', 'basketball', 'summer league', 
             'boston celtics', 'new york', 'miami heat', 'bay area', 'dallas mavericks', 
             'lakers', 'latest update', 'sports news', 'league update', 'news report'
         }
