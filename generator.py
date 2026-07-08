@@ -15,6 +15,14 @@ from PIL import Image, ImageFilter, ImageStat
 from concurrent.futures import ThreadPoolExecutor
 import feedparser  
 import edge_tts
+from keybert import KeyBERT  # KeyBERT ইমপোর্ট করা হলো
+
+# KeyBERT মডেলটি গ্লোবালি লোড করা হলো যেন প্রতিবার ফাংশন কলের সময় রিলোড হতে না হয়
+try:
+    kw_model = KeyBERT()
+except Exception as e:
+    print(f"Warning: Failed to initialize KeyBERT globally: {e}")
+    kw_model = None
 
 async def generate_voice_and_subtitles(text, voice, audio_path, srt_path):
     communicate = edge_tts.Communicate(text, voice)
@@ -100,6 +108,19 @@ def group_paragraphs(paragraphs, min_words=80):
 
 # --- ক্যাপিটাল লেটার, অ্যাপোস্ট্রফি ও হাইফেনসহ সব প্লেয়ারদের নাম চেনার স্মার্ট কিওয়ার্ড ফাংশন ---
 def get_primary_keyword_app_logic(text):
+    # KeyBERT ব্যবহার করে কি-ওয়ার্ড খোঁজার প্রথম চেষ্টা
+    if kw_model is not None and text and text.strip():
+        try:
+            # keyphrase_ngram_range=(1, 2) দিয়ে ১ অথবা ২ শব্দের কি-ফ্রেজ খোঁজা হচ্ছে
+            keywords = kw_model.extract_keywords(text, keyphrase_ngram_range=(1, 2), stop_words='english', top_n=1)
+            if keywords:
+                keyword = keywords[0][0]
+                print(f"📊 [KeyBERT Logic] Primary Subject Keyword Extracted: '{keyword}'")
+                return keyword
+        except Exception as e:
+            print(f"⚠️ KeyBERT extraction failed, falling back to basic logic: {e}")
+
+    # Fallback Logic: KeyBERT ব্যর্থ হলে বা না থাকলে পূর্বের সাধারণ উপায়ে কি-ওয়ার্ড খোঁজা হবে
     raw_words = re.findall(r"\b[A-Z][a-zA-Z\'-]{3,}\b", text)
     words = [w for w in raw_words if not w.isupper()]
     
