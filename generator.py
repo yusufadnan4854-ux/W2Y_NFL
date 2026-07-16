@@ -1,4 +1,5 @@
 import os
+import sys  # ডাইনামিক বুটস্ট্র্যাপারের জন্য sys যুক্ত করা হলো
 import re
 import json
 import random
@@ -15,13 +16,30 @@ from PIL import Image, ImageFilter, ImageStat
 from concurrent.futures import ThreadPoolExecutor
 import feedparser  
 import edge_tts
-from keybert import KeyBERT  # KeyBERT ইমপোর্ট করা হলো
 
-# KeyBERT মডেলটি গ্লোবালি লোড করা হলো যেন প্রতিবার ফাংশন কলের সময় রিলোড হতে না হয়
+# ইউটিউব কোটা শেষ হলে লুপ ব্রেক করার জন্য কাস্টম এক্সেপশন
+class YoutubeQuotaExceededException(Exception):
+    pass
+
+# KeyBERT ডাইনামিক ইমপোর্ট এবং গ্লোবাল ইনিশিয়ালাইজেশন (Dynamic Bootstrapper)
+kw_model = None
 try:
+    from keybert import KeyBERT
     kw_model = KeyBERT()
+except ImportError:
+    print("📦 KeyBERT লাইব্রেরি পাওয়া যায়নি। ডাইনামিক ইন্সটল করার চেষ্টা করা হচ্ছে...")
+    try:
+        # রানার এনভায়রনমেন্টে স্বয়ংক্রিয়ভাবে keybert ইন্সটল করা হচ্ছে
+        subprocess.run([sys.executable, "-m", "pip", "install", "keybert"], check=True)
+        from keybert import KeyBERT
+        kw_model = KeyBERT()
+        print("✅ KeyBERT সফলভাবে ইন্সটল এবং লোড করা হয়েছে!")
+    except Exception as inst_err:
+        print(f"❌ KeyBERT ডাইনামিক ইন্সটলেশন ব্যর্থ হয়েছে: {inst_err}")
+        print("⚠️ পূর্বের সাধারণ লজিক (Fallback Regex) ব্যবহার করে কাজ চালানো হবে।")
+        kw_model = None
 except Exception as e:
-    print(f"Warning: Failed to initialize KeyBERT globally: {e}")
+    print(f"⚠️ KeyBERT ইনিশিয়ালাইজেশন ত্রুটি: {e}")
     kw_model = None
 
 async def generate_voice_and_subtitles(text, voice, audio_path, srt_path):
@@ -108,19 +126,50 @@ def group_paragraphs(paragraphs, min_words=80):
 
 # --- ক্যাপিটাল লেটার, অ্যাপোস্ট্রফি ও হাইফেনসহ সব প্লেয়ারদের নাম চেনার স্মার্ট কিওয়ার্ড ফাংশন ---
 def get_primary_keyword_app_logic(text):
-    # KeyBERT ব্যবহার করে কি-ওয়ার্ড খোঁজার প্রথম চেষ্টা
+    # ১. প্রথমে টেক্সট থেকে ক্যাপিটাল লেটার বিশিষ্ট শব্দ এবং জোড়া শব্দ (Proper Nouns) খুঁজে ক্যান্ডিডেট লিস্ট তৈরি করি
+    candidates = []
+    try:
+        # ২ বা ৩ শব্দের ক্যাপিটাল লেটার নাম (যেমন Victor Oladipo, Koa Peat)
+        raw_names = re.findall(r"\b[A-Z][a-zA-Z\'-]+\s+[A-Z][a-zA-Z\'-]+(?:\s+[A-Z][a-zA-Z\'-]+)?\b", text)
+        candidates.extend(raw_names)
+        
+        # একক ক্যাপিটাল লেটার শব্দ (যেমন Suns, Raptors, Celtics)
+        raw_single_words = re.findall(r"\b[A-Z][a-zA-Z\'-]{3,}\b", text)
+        stop_words_cap = {'That', 'This', 'There', 'With', 'From', 'Have', 'Your', 'Which', 'Will', 
+                          'About', 'Like', 'Just', 'When', 'What', 'Know', 'Feel', 'They', 'NBA', 'NFL', 'ESPN'}
+        single_filtered = [w for w in raw_single_words if w not in stop_words_cap]
+        candidates.extend(single_filtered)
+        
+        # ডুপ্লিকেট বাদ দিয়ে ইউনিক ক্যান্ডিডেট তালিকা তৈরি
+        candidates = list(dict.fromkeys([c.strip() for c in candidates if len(c.strip()) > 2]))
+        
+        # জেনেরিক আর্টিকেল শুরুর শব্দ বাদ দেওয়া (যেমন: "The Celtics" থেকে "The" বাদ দেওয়া)
+        ignore_starts = ('The ', 'A ', 'An ', 'And ', 'But ', 'Or ', 'This ', 'That ', 'These ', 'Those ', 'With ', 'From ', 'About ')
+        candidates = [c for c in candidates if not c.startswith(ignore_starts)]
+    except Exception as e:
+        print(f"⚠️ Candidate generation failed: {e}")
+        candidates = []
+
+    # ২. KeyBERT ব্যবহার করে এই ক্যান্ডিডেটগুলোর মধ্য থেকে সবচেয়ে প্রাসঙ্গিক কিওয়ার্ডটি নির্বাচন করি
     if kw_model is not None and text and text.strip():
         try:
-            # keyphrase_ngram_range=(1, 2) দিয়ে ১ অথবা ২ শব্দের কি-ফ্রেজ খোঁজা হচ্ছে
-            keywords = kw_model.extract_keywords(text, keyphrase_ngram_range=(1, 2), stop_words='english', top_n=1)
+            # যদি আমাদের ক্যান্ডিডেট লিস্ট খালি না থাকে, তবে KeyBERT শুধুমাত্র এই ক্যান্ডিডেটগুলোকে র‍্যাঙ্ক করবে
+            if candidates:
+                keywords = kw_model.extract_keywords(text, candidates=candidates, top_n=1)
+            else:
+                # ক্যান্ডিডেট না পাওয়া গেলে ডিফল্ট হিসেবে ২ শব্দের কিওয়ার্ড খুঁজবে
+                keywords = kw_model.extract_keywords(text, keyphrase_ngram_range=(1, 2), stop_words='english', top_n=1)
+                
             if keywords:
                 keyword = keywords[0][0]
-                print(f"📊 [KeyBERT Logic] Primary Subject Keyword Extracted: '{keyword}'")
-                return keyword
+                # নিশ্চিত করা যেন প্রথম অক্ষরগুলো ক্যাপিটাল লেটার থাকে (যেমন victor oladipo -> Victor Oladipo)
+                keyword_title = keyword.title()
+                print(f"📊 [KeyBERT Semantic Logic] Selected Subject Keyword: '{keyword_title}'")
+                return keyword_title
         except Exception as e:
             print(f"⚠️ KeyBERT extraction failed, falling back to basic logic: {e}")
 
-    # Fallback Logic: KeyBERT ব্যর্থ হলে বা না থাকলে পূর্বের সাধারণ উপায়ে কি-ওয়ার্ড খোঁজা হবে
+    # Fallback Logic: KeyBERT ব্যর্থ হলে বা না থাকলে পূর্বের সাধারণ কাউন্টার ভিত্তিক লজিক
     raw_words = re.findall(r"\b[A-Z][a-zA-Z\'-]{3,}\b", text)
     words = [w for w in raw_words if not w.isupper()]
     
@@ -395,17 +444,27 @@ def safe_upload_to_youtube(video_full_path, thumb_full_path, title, video_descri
         body=body, 
         media_body=MediaFileUpload(video_full_path, resumable=True, mimetype="video/mp4")
     )
-    completed_exec = target_job.execute()
-    newly_deployed_id = completed_exec.get('id')
-    
-    print(f"🚀 Mission uploaded successfully! ID: {newly_deployed_id}")
+    try:
+        completed_exec = target_job.execute()
+        newly_deployed_id = completed_exec.get('id')
+        
+        print(f"🚀 Mission uploaded successfully! ID: {newly_deployed_id}")
 
-    if os.path.exists(thumb_full_path):
-        try:
-            google_cloud_instance.thumbnails().set(videoId=newly_deployed_id, media_body=MediaFileUpload(thumb_full_path)).execute()
-            print("Associated cover photo added effectively.\n")
-        except Exception as e:
-            print(f"Thumbnail upload failed: {e}")
+        if os.path.exists(thumb_full_path):
+            try:
+                google_cloud_instance.thumbnails().set(videoId=newly_deployed_id, media_body=MediaFileUpload(thumb_full_path)).execute()
+                print("Associated cover photo added effectively.\n")
+            except Exception as e:
+                print(f"Thumbnail upload failed: {e}")
+    except Exception as e:
+        err_msg = str(e)
+        # ইউটিউব কোটা শেষ হওয়ার ত্রুটি সনাক্তকরণ
+        if "quota" in err_msg.lower() or "limit" in err_msg.lower() or "429" in err_msg:
+            print("\n🛑 [Quota Exhausted] YouTube API Daily Upload Quota Limit Exceeded!")
+            raise YoutubeQuotaExceededException("YouTube API upload quota exceeded.") from e
+        else:
+            print(f"❌ YouTube upload failed with unexpected error: {e}")
+            raise e
 
 def hex_to_ass_color(hex_str, opacity_float=1.0):
     hex_str = hex_str.lstrip('#')
@@ -592,7 +651,7 @@ def process_primary_automation_loop():
 
                 if not dflocst:
                     print("⚠️ No direct photos. Running fallback search with general title keywords...")
-                    fallback_urls = scrape_images_strictly_web(vid_ttl, vid_ttl, [], num_images_needed=num_images_to_download, append_toggle=append_kwd_feature, append_word=append_suffix)
+                    fallback_urls = scrape_images_strictly_web(vid_ttl, text_chunk_collected, [], num_images_needed=num_images_to_download, append_toggle=append_kwd_feature, append_word=append_suffix)
                     for image_link in fallback_urls[:5]:
                         try:
                             rd = requests.get(image_link, timeout=5, headers=headers)
@@ -765,7 +824,7 @@ def process_primary_automation_loop():
 
                     if not dflocst:
                         print("⚠️ No direct photos. Running fallback search with general title keywords...")
-                        fallback_urls = scrape_images_strictly_web(vid_ttl, vid_ttl, [], num_images_needed=num_images_to_download, append_toggle=append_kwd_feature, append_word=append_suffix)
+                        fallback_urls = scrape_images_strictly_web(vid_ttl, grp_text, [], num_images_needed=num_images_to_download, append_toggle=append_kwd_feature, append_word=append_suffix)
                         for image_link in fallback_urls[:5]:
                             try:
                                 rd = requests.get(image_link, timeout=5, headers=headers)
@@ -881,12 +940,18 @@ def process_primary_automation_loop():
             print("🔗 Merging all processed segment clips into finalized master timeline...")
             subprocess.run(["ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error", "-safe", "0", "-f", "concat", "-i", os.path.abspath(final_concat_txt).replace("\\", "/"), "-c", "copy", os.path.abspath(fully_finalized_output).replace("\\", "/")], check=True)
 
+            # ভিডিও ইউটিউবে আপলোড করা
             safe_upload_to_youtube(fully_finalized_output, os.path.join(wkspace, "thumbnail.jpg"), vid_ttl, f"Complete Highlights Recap: {vid_ttl}")
             
             with open("processed_urls.txt", "a", encoding="utf-8") as fwx_docv: fwx_docv.write(lns+"\n")
             print("================ 🎯 Complete Workflow Operations executed successfully seamlessly! 💯 ================\n")
 
-        except Exception as errp: traceback.print_exc()
+        # ইউটিউব কোটা শেষ হওয়ার কাস্টম এক্সেপশন ক্যাচ করে লুপ ব্রেক করা
+        except YoutubeQuotaExceededException:
+            print("\n🛑 stopping loop: YouTube Daily Upload Quota is fully exhausted. Remaining articles will be processed in the next run.")
+            break
+        except Exception as errp: 
+            traceback.print_exc()
 
 if __name__ == "__main__":
     process_primary_automation_loop()
